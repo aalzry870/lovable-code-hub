@@ -132,7 +132,12 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
     }
     const { data, error } = await supabase
       .from('products' as any)
-      .insert({ ...p, created_by: user.id } as any)
+      .insert({ 
+        ...p, 
+        created_by: user.id,
+        unit: p.unit || 'قطعة',
+        min_quantity: p.min_quantity ?? 2   // ✅ إضافة الحد الأدنى للتنبيه
+      } as any)
       .select()
       .single();
 
@@ -149,8 +154,16 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase
       .from('products' as any)
       .update({
-        name: p.name, code: p.code, barcode: p.barcode, category_id: p.category_id,
-        quantity: p.quantity, warehouse_id: p.warehouse_id, description: p.description, image: p.image
+        name: p.name,
+        code: p.code,
+        barcode: p.barcode,
+        category_id: p.category_id,
+        quantity: p.quantity,
+        warehouse_id: p.warehouse_id,
+        description: p.description,
+        image: p.image,
+        unit: p.unit,                    // ✅ إضافة الوحدة
+        min_quantity: p.min_quantity     // ✅ إضافة الحد الأدنى للتنبيه
       } as any)
       .eq('id', p.id);
     if (error) showError(error.message);
@@ -398,13 +411,14 @@ export const WarehouseProvider = ({ children }: { children: ReactNode }) => {
             created_by: user.id,
           } as any);
 
-          // تحقق من المخزون المنخفض
+          // تحقق من المخزون المنخفض باستخدام min_quantity الخاص بالمنتج
           const updatedProduct = products.find(p => p.id === newMovement.product_id);
           if (updatedProduct) {
             const newQty = newMovement.type === 'out'
               ? updatedProduct.quantity - newMovement.quantity
               : updatedProduct.quantity + newMovement.quantity;
-            if (newQty <= 10) {
+            const minQty = updatedProduct.min_quantity ?? 2;
+            if (newQty <= minQty) {
               const lowNotif = getLowStockNotification({
                 productName,
                 quantity: newQty,
